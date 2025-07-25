@@ -262,6 +262,8 @@
     </footer>
 
     <script>
+    // Puraane <script> ko is naye waale se replace karein
+<script>
     document.addEventListener("DOMContentLoaded", function() {
         
         // --- 1. Fade-in animation for tool cards ---
@@ -285,11 +287,36 @@
         const loadingSpinner = document.getElementById('loading-spinner');
         const toolsGrid = document.querySelector('.tools-grid');
         const closeModalBtn = document.getElementById('modal-close-btn');
+        
+        // Add a new element for the password field
+        const passwordField = document.createElement('div');
+        passwordField.innerHTML = `
+            <label for="password" style="font-weight: bold; margin-top: 15px; display: block;">Password:</label>
+            <input type="password" id="password" name="password" style="width: 100%; padding: 8px; margin-top: 5px;" placeholder="Enter password to protect PDF">
+        `;
+        passwordField.style.display = 'none'; // Initially hidden
+        pdfForm.insertBefore(passwordField, document.querySelector('.submit-btn'));
+
 
         // Function to open the modal
         function openModal(title, description) {
             modalTitle.innerText = title;
             modalDescription.innerText = description;
+            
+            // Handle multiple files for Merge tool
+            if (title === 'Merge PDF') {
+                fileInput.setAttribute('multiple', true);
+            } else {
+                fileInput.removeAttribute('multiple');
+            }
+            
+            // Show password field only for Protect tool
+            if (title === 'Protect PDF') {
+                passwordField.style.display = 'block';
+            } else {
+                passwordField.style.display = 'none';
+            }
+
             pdfForm.style.display = 'block';
             loadingSpinner.style.display = 'none';
             modal.style.display = 'flex';
@@ -316,38 +343,49 @@
         // Close modal listeners
         closeModalBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', function(e) {
-            if (e.target === modal) { // If user clicks on the dark overlay
+            if (e.target === modal) {
                 closeModal();
             }
         });
 
-        // Display the selected file name
+        // Display the selected file name(s)
         fileInput.addEventListener('change', function() {
-            fileNameDisplay.textContent = this.files.length > 0 ? `Selected: ${this.files[0].name}` : '';
+            if (this.files.length > 1) {
+                fileNameDisplay.textContent = `${this.files.length} files selected`;
+            } else if (this.files.length === 1) {
+                fileNameDisplay.textContent = `Selected: ${this.files[0].name}`;
+            } else {
+                fileNameDisplay.textContent = '';
+            }
         });
 
         // Handle the form submission
         pdfForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            const file = fileInput.files[0];
-            if (!file) { alert("Please select a file first!"); return; }
+            if (fileInput.files.length === 0) { alert("Please select a file first!"); return; }
 
             pdfForm.style.display = 'none';
             loadingSpinner.style.display = 'block';
 
             const formData = new FormData();
-            formData.append('pdfFile', file);
-            // Add the tool name to the form data so the server knows what to do
+            // Append all selected files
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('pdfFiles', fileInput.files[i]);
+            }
             formData.append('tool', modalTitle.innerText);
-
-            // This URL points to your local server's API endpoint
+            
+            // Append password if it exists
+            const passwordInput = document.getElementById('password');
+            if(passwordInput && passwordInput.value) {
+                formData.append('password', passwordInput.value);
+            }
+            
             fetch('/api/process-pdf', {
                 method: 'POST',
                 body: formData,
             })
             .then(response => {
                 if (!response.ok) {
-                    // Get error message from server if available
                     return response.text().then(text => { throw new Error(text || 'Server Error') });
                 }
                 return response.blob();
@@ -357,7 +395,7 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = `processed-${file.name}`;
+                a.download = `processed-${fileInput.files[0].name}`;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -370,6 +408,7 @@
             });
         });
     });
+</script>
     </script>
 </body>
 </html>
