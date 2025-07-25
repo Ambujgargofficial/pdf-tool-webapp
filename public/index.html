@@ -262,8 +262,6 @@
     </footer>
 
     <script>
-    // Puraane <script> ko is naye waale se replace karein
-<script>
     document.addEventListener("DOMContentLoaded", function() {
         
         // --- 1. Fade-in animation for tool cards ---
@@ -343,7 +341,7 @@
         // Close modal listeners
         closeModalBtn.addEventListener('click', closeModal);
         modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
+            if (e.target === modal) { // If user clicks on the dark overlay
                 closeModal();
             }
         });
@@ -380,6 +378,7 @@
                 formData.append('password', passwordInput.value);
             }
             
+            // Use a relative path for the API endpoint
             fetch('/api/process-pdf', {
                 method: 'POST',
                 body: formData,
@@ -408,7 +407,6 @@
             });
         });
     });
-</script>
     </script>
 </body>
 </html>
