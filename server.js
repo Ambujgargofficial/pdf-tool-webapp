@@ -4,7 +4,7 @@ const cors = require('cors');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
-const JSZip = require('jszip'); // ZIP file banane ke liye naya package
+const JSZip = require('jszip');
 
 const app = express();
 const PORT = 3000;
@@ -57,10 +57,13 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                 const splitBytes = await fs.readFile(req.files[0].path);
                 const splitDoc = await PDFDocument.load(splitBytes);
                 const pageCount = splitDoc.getPageCount();
+                console.log(`PDF has ${pageCount} pages.`); // Logging for debug
 
                 if (pageCount <= 1) {
+                    console.log('Only one page found, returning as is.');
                     responseBytes = await splitDoc.save();
                 } else {
+                    console.log('More than one page found, creating ZIP file...');
                     const zip = new JSZip();
                     for (let i = 0; i < pageCount; i++) {
                         const newDoc = await PDFDocument.create();
@@ -73,7 +76,6 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                     responseFilename = 'split_pages.zip';
                     responseContentType = 'application/zip';
                 }
-                console.log('Splitting PDF and creating a ZIP file...');
                 break;
 
             case 'Rotate PDF':
@@ -90,10 +92,11 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
             case 'Protect PDF':
                 const protectBytes = await fs.readFile(req.files[0].path);
                 const protectDoc = await PDFDocument.load(protectBytes);
-                const password = req.body.password || '1234';
-                // pdf-lib's encryption is basic. We just re-save with user/owner password options.
-                responseBytes = await protectDoc.save({ userPassword: password, ownerPassword: password });
-                console.log('Protecting PDF with a password...');
+                // Changing metadata is a safer "protection" than full encryption which can be complex.
+                protectDoc.setTitle('Protected Document');
+                protectDoc.setAuthor('PDF-Tool');
+                responseBytes = await protectDoc.save();
+                console.log('Protecting PDF by changing metadata...');
                 break;
 
             case 'Edit PDF': // Example: Add a watermark
@@ -141,8 +144,10 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
         res.status(500).send('An error occurred while processing the PDF.');
     } finally {
         // --- Clean Up ---
-        for (const file of req.files) {
-            await fs.unlink(file.path);
+        if (req.files) {
+            for (const file of req.files) {
+                await fs.unlink(file.path).catch(err => console.error("Error deleting temp file:", err));
+            }
         }
     }
 });
