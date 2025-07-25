@@ -57,25 +57,25 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                 const splitBytes = await fs.readFile(req.files[0].path);
                 const splitDoc = await PDFDocument.load(splitBytes);
                 const pageCount = splitDoc.getPageCount();
-                console.log(`PDF has ${pageCount} pages.`);
 
                 if (pageCount <= 1) {
-                    console.log('Only one page found, returning as is.');
-                    responseBytes = await splitDoc.save();
-                } else {
-                    console.log('More than one page found, creating ZIP file...');
-                    const zip = new JSZip();
-                    for (let i = 0; i < pageCount; i++) {
-                        const newDoc = await PDFDocument.create();
-                        const [copiedPage] = await newDoc.copyPages(splitDoc, [i]);
-                        newDoc.addPage(copiedPage);
-                        const singlePageBytes = await newDoc.save();
-                        zip.file(`page_${i + 1}.pdf`, singlePageBytes);
-                    }
-                    responseBytes = await zip.generateAsync({ type: 'nodebuffer' });
-                    responseFilename = 'split_pages.zip';
-                    responseContentType = 'application/zip';
+                    // Agar sirf ek page hai, to error bhej dein
+                    throw new Error("Cannot split a PDF with only one page. Please upload a multi-page document.");
                 }
+
+                console.log(`PDF has ${pageCount} pages. Creating ZIP file...`);
+                const zip = new JSZip();
+                for (let i = 0; i < pageCount; i++) {
+                    const newDoc = await PDFDocument.create();
+                    const [copiedPage] = await newDoc.copyPages(splitDoc, [i]);
+                    newDoc.addPage(copiedPage);
+                    const singlePageBytes = await newDoc.save();
+                    zip.file(`page_${i + 1}.pdf`, singlePageBytes);
+                }
+
+                responseBytes = await zip.generateAsync({ type: 'nodebuffer' });
+                responseFilename = 'split_pages.zip';
+                responseContentType = 'application/zip';
                 break;
 
             case 'Rotate PDF':
@@ -117,18 +117,9 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                 console.log('Editing PDF: adding watermark...');
                 break;
 
-            case 'PDF to Word':
-            case 'PDF to PowerPoint':
-            case 'PDF to Excel':
-            case 'PDF to JPG':
-            case 'Sign PDF':
-            case 'Unlock PDF':
-                console.log(`Tool '${tool}' requires advanced libraries/APIs. Returning original file.`);
-                responseBytes = await fs.readFile(req.files[0].path);
-                break;
-
+            // Placeholder cases for advanced tools
             default:
-                console.log(`Tool '${tool}' not implemented, returning original.`);
+                console.log(`Tool '${tool}' not implemented or requires advanced libraries. Returning original file.`);
                 responseBytes = await fs.readFile(req.files[0].path);
                 break;
         }
@@ -136,11 +127,11 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
         // --- Send the Result Back ---
         res.setHeader('Content-Type', responseContentType);
         res.setHeader('Content-Disposition', `attachment; filename=${responseFilename}`);
-        res.send(responseBytes); // YAHAN BADLAAV KIYA GAYA HAI
+        res.send(responseBytes);
 
     } catch (error) {
         console.error('Error processing PDF:', error);
-        res.status(500).send('An error occurred while processing the PDF.');
+        res.status(500).send(`An error occurred: ${error.message}`);
     } finally {
         if (req.files) {
             for (const file of req.files) {
