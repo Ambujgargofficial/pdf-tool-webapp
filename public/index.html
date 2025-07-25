@@ -341,7 +341,7 @@
             formData.append('tool', modalTitle.innerText);
 
             // This URL points to your local server's API endpoint
-            fetch('http://localhost:3000/api/process-pdf', {
+            fetch('/api/process-pdf', {
                 method: 'POST',
                 body: formData,
             })
