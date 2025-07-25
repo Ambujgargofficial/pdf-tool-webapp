@@ -1,11 +1,10 @@
-// server.js - FINAL VERSION WITH ALL TOOLS
-
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs').promises;
 const path = require('path');
+const JSZip = require('jszip'); // ZIP file banane ke liye naya package
 
 const app = express();
 const PORT = 3000;
@@ -13,17 +12,13 @@ const PORT = 3000;
 // --- Middleware ---
 app.use(cors());
 app.use(express.static('public'));
-app.use(express.json()); // To parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // To parse URL-encoded bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Configure Multer for both single and multiple file uploads
 const upload = multer({ dest: 'uploads/' });
-// Ensure the 'uploads' directory exists
 fs.mkdir('uploads', { recursive: true }).catch(console.error);
 
-
 // --- API Endpoint for Processing PDFs ---
-// Using upload.array() to accept multiple files for merging
 app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
     const tool = req.body.tool;
     console.log(`Processing request for tool: ${tool}`);
@@ -33,15 +28,16 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
     }
 
     try {
-        let modifiedPdfBytes;
+        let responseBytes;
+        let responseFilename = 'processed.pdf';
+        let responseContentType = 'application/pdf';
 
         // --- PDF Processing Logic ---
         switch (tool) {
             case 'Compress PDF':
-                const compressPath = req.files[0].path;
-                const compressBytes = await fs.readFile(compressPath);
+                const compressBytes = await fs.readFile(req.files[0].path);
                 const compressDoc = await PDFDocument.load(compressBytes);
-                modifiedPdfBytes = await compressDoc.save();
+                responseBytes = await compressDoc.save();
                 console.log('Applying basic re-save "compression"...');
                 break;
 
@@ -53,53 +49,55 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                     const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
                     copiedPages.forEach((page) => mergedPdf.addPage(page));
                 }
-                modifiedPdfBytes = await mergedPdf.save();
+                responseBytes = await mergedPdf.save();
                 console.log('Merging multiple PDFs...');
                 break;
             
             case 'Split PDF':
-                 // This example splits the PDF into single pages, but only returns the first one.
-                 // A full implementation would return a ZIP file.
-                const splitPath = req.files[0].path;
-                const splitBytes = await fs.readFile(splitPath);
+                const splitBytes = await fs.readFile(req.files[0].path);
                 const splitDoc = await PDFDocument.load(splitBytes);
-                const newSplitDoc = await PDFDocument.create();
-                const [firstPage] = await newSplitDoc.copyPages(splitDoc, [0]);
-                newSplitDoc.addPage(firstPage);
-                modifiedPdfBytes = await newSplitDoc.save();
-                console.log('Splitting PDF: returning first page as example...');
+                const pageCount = splitDoc.getPageCount();
+
+                if (pageCount <= 1) {
+                    responseBytes = await splitDoc.save();
+                } else {
+                    const zip = new JSZip();
+                    for (let i = 0; i < pageCount; i++) {
+                        const newDoc = await PDFDocument.create();
+                        const [copiedPage] = await newDoc.copyPages(splitDoc, [i]);
+                        newDoc.addPage(copiedPage);
+                        const singlePageBytes = await newDoc.save();
+                        zip.file(`page_${i + 1}.pdf`, singlePageBytes);
+                    }
+                    responseBytes = await zip.generateAsync({ type: 'nodebuffer' });
+                    responseFilename = 'split_pages.zip';
+                    responseContentType = 'application/zip';
+                }
+                console.log('Splitting PDF and creating a ZIP file...');
                 break;
 
             case 'Rotate PDF':
-                const rotatePath = req.files[0].path;
-                const rotateBytes = await fs.readFile(rotatePath);
+                const rotateBytes = await fs.readFile(req.files[0].path);
                 const rotateDoc = await PDFDocument.load(rotateBytes);
                 const pages = rotateDoc.getPages();
                 pages.forEach(page => {
-                    const currentRotation = page.getRotation().angle;
-                    page.setRotation(currentRotation + 90);
+                    page.setRotation(page.getRotation().angle + 90);
                 });
-                modifiedPdfBytes = await rotateDoc.save();
+                responseBytes = await rotateDoc.save();
                 console.log('Rotating PDF by 90 degrees...');
                 break;
             
             case 'Protect PDF':
-                const protectPath = req.files[0].path;
-                const protectBytes = await fs.readFile(protectPath);
+                const protectBytes = await fs.readFile(req.files[0].path);
                 const protectDoc = await PDFDocument.load(protectBytes);
-                const password = req.body.password || '1234'; // Get password from request
-                await protectDoc.save({
-                    userPassword: password,
-                    ownerPassword: password,
-                    permissions: { printing: 'highResolution' }
-                });
-                modifiedPdfBytes = await protectDoc.save();
+                const password = req.body.password || '1234';
+                // pdf-lib's encryption is basic. We just re-save with user/owner password options.
+                responseBytes = await protectDoc.save({ userPassword: password, ownerPassword: password });
                 console.log('Protecting PDF with a password...');
                 break;
 
             case 'Edit PDF': // Example: Add a watermark
-                const editPath = req.files[0].path;
-                const editBytes = await fs.readFile(editPath);
+                const editBytes = await fs.readFile(req.files[0].path);
                 const editDoc = await PDFDocument.load(editBytes);
                 const helveticaFont = await editDoc.embedFont(StandardFonts.Helvetica);
                 const editPages = editDoc.getPages();
@@ -113,7 +111,7 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                         opacity: 0.5,
                     });
                 });
-                modifiedPdfBytes = await editDoc.save();
+                responseBytes = await editDoc.save();
                 console.log('Editing PDF: adding watermark...');
                 break;
 
@@ -123,36 +121,31 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
             case 'PDF to JPG':
             case 'Sign PDF':
             case 'Unlock PDF':
-                console.log(`Tool '${tool}' requires advanced libraries/APIs not included in this simple setup.`);
-                // For now, just return the original file
-                const originalPath = req.files[0].path;
-                modifiedPdfBytes = await fs.readFile(originalPath);
+                console.log(`Tool '${tool}' requires advanced libraries/APIs. Returning original file.`);
+                responseBytes = await fs.readFile(req.files[0].path);
                 break;
 
             default:
                 console.log(`Tool '${tool}' not implemented, returning original.`);
-                const defaultPath = req.files[0].path;
-                modifiedPdfBytes = await fs.readFile(defaultPath);
+                responseBytes = await fs.readFile(req.files[0].path);
                 break;
         }
 
         // --- Send the Result Back ---
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=processed.pdf`);
-        res.send(Buffer.from(modifiedPdfBytes));
+        res.setHeader('Content-Type', responseContentType);
+        res.setHeader('Content-Disposition', `attachment; filename=${responseFilename}`);
+        res.send(Buffer.from(responseBytes));
 
     } catch (error) {
         console.error('Error processing PDF:', error);
         res.status(500).send('An error occurred while processing the PDF.');
     } finally {
         // --- Clean Up ---
-        // Delete all temporary files from the 'uploads' folder
         for (const file of req.files) {
             await fs.unlink(file.path);
         }
     }
 });
-
 
 // --- Start the Server ---
 app.listen(PORT, () => {
