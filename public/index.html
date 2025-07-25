@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Toolbox - Free & Unlimited PDF Tools</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        /* CSS Variables for easy theme management */
+        :root {
+            --primary-color: #7b2cbf;
+            --secondary-color: #5a189a;
+            --background-color: #f8f9fa;
+            --text-color: #343a40;
+            --card-bg-color: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.08);
+            --border-color: #dee2e6;
+        }
+
+        /* 1. ===== BASIC RESET & BODY STYLING ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* 2. ===== HEADER ===== */
+        .header {
+            background: var(--card-bg-color);
+            padding: 1rem 0;
+            box-shadow: var(--shadow-color) 0px 4px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        .logo i { margin-right: 8px; }
+
+        /* 3. ===== HERO SECTION ===== */
+        .hero {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+        .hero h1 { font-size: 3rem; margin-bottom: 10px; }
+        .hero p { font-size: 1.2rem; max-width: 700px; margin: 0 auto; }
+        
+        /* 4. ===== TOOLS SECTION ===== */
+        .tools-section { padding: 60px 0; }
+        .section-title { text-align: center; font-size: 2.5rem; margin-bottom: 40px; color: var(--text-color); }
+        .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; }
+        
+        .tool-card {
+            background: var(--card-bg-color);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px var(--shadow-color);
+            text-decoration: none;
+            color: var(--text-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            opacity: 0; /* Initially hidden for animation */
+            transform: translateY(20px);
+        }
+        .tool-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0, 0, 0, 0.12); }
+        .tool-card.visible { opacity: 1; transform: translateY(0); }
+        .tool-card i { font-size: 3rem; color: var(--primary-color); margin-bottom: 20px; }
+        .tool-card h3 { font-size: 1.25rem; margin-bottom: 10px; }
+        .tool-card p { font-size: 0.9rem; color: #6c757d; }
+
+        /* 5. ===== MODAL STYLES ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-close {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: none; border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .file-upload-wrapper { position: relative; margin: 20px 0; }
+        #file-input { display: none; }
+        .file-upload-label {
+            display: block; padding: 30px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px; text-align: center;
+            cursor: pointer; transition: background-color 0.2s;
+        }
+        .file-upload-label:hover { background-color: #f1f1f1; }
+        .file-upload-label i { font-size: 2.5rem; color: var(--primary-color); display: block; margin-bottom: 10px; }
+        #file-name-display { text-align: center; margin-bottom: 20px; font-weight: 500; }
+        
+        .submit-btn {
+            width: 100%; padding: 15px;
+            background: var(--primary-color);
+            color: white; border: none; border-radius: 8px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+        }
+        .submit-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        #loading-spinner { text-align: center; }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            width: 50px; height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 6. ===== FOOTER ===== */
+        .footer {
+            background-color: #343a40;
+            color: #f8f9fa;
+            text-align: center;
+            padding: 30px 20px;
+            margin-top: 60px;
+        }
+        .footer p { margin: 0; }
+
+        /* 7. ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .tools-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+        }
+        @media (max-width: 480px) { .tools-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="container">
+            <a href="#" class="logo"><i class="fa-solid fa-rocket"></i>PDF Toolbox</a>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>All-in-One Free PDF Tools</h1>
+            <p>Easily convert, compress, merge, split, and edit PDF files online. Free, secure, and unlimited.</p>
+        </section>
+
+        <section class="tools-section">
+            <div class="container">
+                <h2 class="section-title">Our Tools</h2>
+                <div class="tools-grid">
+                    <a href="#" class="tool-card" data-tool="Compress PDF" data-description="Reduce the file size of your PDF while keeping the best quality.">
+                        <i class="fa-solid fa-compress"></i><h3>Compress PDF</h3><p>Reduce file size</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="Merge PDF" data-description="Combine multiple PDF files into a single, unified document.">
+                        <i class="fa-solid fa-object-group"></i><h3>Merge PDF</h3><p>Combine multiple PDFs</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="Split PDF" data-description="Extract pages from your PDF or save each page as a separate file.">
+                        <i class="fa-solid fa-object-ungroup"></i><h3>Split PDF</h3><p>Extract pages from a PDF</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="PDF to Word" data-description="Convert your PDF files to editable DOCX documents with ease.">
+                        <i class="fa-solid fa-file-word"></i><h3>PDF to Word</h3><p>Convert PDF to DOCX</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="PDF to PowerPoint" data-description="Turn your PDFs into easy-to-edit PPTX slideshow presentations.">
+                        <i class="fa-solid fa-file-powerpoint"></i><h3>PDF to PowerPoint</h3><p>Convert PDF to PPTX</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="PDF to Excel" data-description="Pull data directly from PDFs into editable Excel spreadsheets.">
+                        <i class="fa-solid fa-file-excel"></i><h3>PDF to Excel</h3><p>Convert PDF to XLSX</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="PDF to JPG" data-description="Convert each page of a PDF into a high-quality JPG image.">
+                        <i class="fa-solid fa-file-image"></i><h3>PDF to JPG</h3><p>Convert PDF to JPG</p>
+                    </a>
+                     <a href="#" class="tool-card" data-tool="Sign PDF" data-description="Sign your PDF files yourself or request electronic signatures.">
+                        <i class="fa-solid fa-file-signature"></i><h3>Sign PDF</h3><p>Add your signature</p>
+                    </a>
+                     <a href="#" class="tool-card" data-tool="Protect PDF" data-description="Add a password to your PDF to prevent unauthorized access.">
+                        <i class="fa-solid fa-lock"></i><h3>Protect PDF</h3><p>Add a password</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="Unlock PDF" data-description="Remove a password from your PDF file. You must have the rights to the file.">
+                        <i class="fa-solid fa-lock-open"></i><h3>Unlock PDF</h3><p>Remove a password</p>
+                    </a>
+                    <a href="#" class="tool-card" data-tool="Rotate PDF" data-description="Rotate pages in your PDF document just the way you need them.">
+                        <i class="fa-solid fa-rotate"></i><h3>Rotate PDF</h3><p>Rotate PDF pages</p>
+                    </a>
+                     <a href="#" class="tool-card" data-tool="Edit PDF" data-description="Add text, shapes, images, and freehand annotations to a PDF.">
+                        <i class="fa-solid fa-pen-ruler"></i><h3>Edit PDF</h3><p>Annotate and edit a PDF</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+            <h2 id="modal-title">Tool Title</h2>
+            <p id="modal-description">Tool description.</p>
+            <form id="pdf-form">
+                <div class="file-upload-wrapper">
+                    <input type="file" id="file-input" name="pdfFile" accept=".pdf" required>
+                    <label for="file-input" class="file-upload-label">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Choose a PDF file...</span>
+                    </label>
+                </div>
+                <p id="file-name-display"></p>
+                <button type="submit" class="submit-btn">Process Now</button>
+            </form>
+            <div id="loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+                <p>Processing your file, please wait...</p>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>&copy; 2025 PDF Toolbox. Crafted with <i class="fa-solid fa-heart" style="color: #e74c3c;"></i> in India.</p>
+    </footer>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // --- 1. Fade-in animation for tool cards ---
+        const toolCards = document.querySelectorAll('.tool-card');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+        toolCards.forEach(card => observer.observe(card));
+
+        // --- 2. Modal Functionality ---
+        const modal = document.getElementById('upload-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDescription = document.getElementById('modal-description');
+        const pdfForm = document.getElementById('pdf-form');
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const toolsGrid = document.querySelector('.tools-grid');
+        const closeModalBtn = document.getElementById('modal-close-btn');
+
+        // Function to open the modal
+        function openModal(title, description) {
+            modalTitle.innerText = title;
+            modalDescription.innerText = description;
+            pdfForm.style.display = 'block';
+            loadingSpinner.style.display = 'none';
+            modal.style.display = 'flex';
+        }
+
+        // Function to close the modal
+        function closeModal() {
+            modal.style.display = 'none';
+            pdfForm.reset();
+            fileNameDisplay.textContent = '';
+        }
+        
+        // Event Delegation: Listen for clicks on the entire grid
+        toolsGrid.addEventListener('click', function(e) {
+            const card = e.target.closest('.tool-card');
+            if (card) {
+                e.preventDefault();
+                const toolName = card.dataset.tool;
+                const toolDescription = card.dataset.description;
+                openModal(toolName, toolDescription);
+            }
+        });
+
+        // Close modal listeners
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) { // If user clicks on the dark overlay
+                closeModal();
+            }
+        });
+
+        // Display the selected file name
+        fileInput.addEventListener('change', function() {
+            fileNameDisplay.textContent = this.files.length > 0 ? `Selected: ${this.files[0].name}` : '';
+        });
+
+        // Handle the form submission
+        pdfForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) { alert("Please select a file first!"); return; }
+
+            pdfForm.style.display = 'none';
+            loadingSpinner.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('pdfFile', file);
+            // Add the tool name to the form data so the server knows what to do
+            formData.append('tool', modalTitle.innerText);
+
+            // This URL points to your local server's API endpoint
+            fetch('http://localhost:3000/api/process-pdf', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Get error message from server if available
+                    return response.text().then(text => { throw new Error(text || 'Server Error') });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `processed-${file.name}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                closeModal();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(`An error occurred: ${error.message}`);
+                closeModal();
+            });
+        });
+    });
+    </script>
+</body>
+</html>
