@@ -57,7 +57,7 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
                 const splitBytes = await fs.readFile(req.files[0].path);
                 const splitDoc = await PDFDocument.load(splitBytes);
                 const pageCount = splitDoc.getPageCount();
-                console.log(`PDF has ${pageCount} pages.`); // Logging for debug
+                console.log(`PDF has ${pageCount} pages.`);
 
                 if (pageCount <= 1) {
                     console.log('Only one page found, returning as is.');
@@ -92,14 +92,13 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
             case 'Protect PDF':
                 const protectBytes = await fs.readFile(req.files[0].path);
                 const protectDoc = await PDFDocument.load(protectBytes);
-                // Changing metadata is a safer "protection" than full encryption which can be complex.
                 protectDoc.setTitle('Protected Document');
                 protectDoc.setAuthor('PDF-Tool');
                 responseBytes = await protectDoc.save();
                 console.log('Protecting PDF by changing metadata...');
                 break;
 
-            case 'Edit PDF': // Example: Add a watermark
+            case 'Edit PDF': 
                 const editBytes = await fs.readFile(req.files[0].path);
                 const editDoc = await PDFDocument.load(editBytes);
                 const helveticaFont = await editDoc.embedFont(StandardFonts.Helvetica);
@@ -137,13 +136,12 @@ app.post('/api/process-pdf', upload.array('pdfFiles', 10), async (req, res) => {
         // --- Send the Result Back ---
         res.setHeader('Content-Type', responseContentType);
         res.setHeader('Content-Disposition', `attachment; filename=${responseFilename}`);
-        res.send(Buffer.from(responseBytes));
+        res.send(responseBytes); // YAHAN BADLAAV KIYA GAYA HAI
 
     } catch (error) {
         console.error('Error processing PDF:', error);
         res.status(500).send('An error occurred while processing the PDF.');
     } finally {
-        // --- Clean Up ---
         if (req.files) {
             for (const file of req.files) {
                 await fs.unlink(file.path).catch(err => console.error("Error deleting temp file:", err));
